@@ -1,0 +1,48 @@
+# dependencies
+.claude
+node_modules/
+
+# build output
+dist/
+build/
+.next/
+out/
+
+.wrangler/*
+
+# local env files
+.dev.vars
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+.env.*
+!.env.example
+
+# cache
+.eslintcache
+.cache/
+.turbo/
+.nx/
+
+# TypeScript build info
+tsconfig.app.tsbuildinfo
+tsconfig.node.tsbuildinfo
+*.zip
+**/.wrangler/

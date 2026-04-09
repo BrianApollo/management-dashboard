@@ -1,0 +1,45 @@
+import { Routes, Route } from "react-router-dom";
+import { OpsLayout } from "../components/global/OpsLayout";
+import { ProductsPage } from "../pages/products/ProductsPage";
+import { CampaignLaunchPage } from "../pages/campaigns/CampaignLaunchPage";
+import { CampaignViewPage } from "../pages/campaigns/CampaignViewPage";
+import { InfrastructurePage } from "../pages/infrastructure/InfrastructurePage";
+import { ManagePage } from "../pages/manage/ManagePage";
+import { RulesPage } from "../pages/rules/RulesPage";
+import { SchedulesPage } from "../pages/schedules/SchedulesPage";
+import { OverviewPage } from "../pages/overview/OverviewPage";
+import { EditorPortalPage } from "../pages/videos/EditorPortalPage";
+import { FulfillmentPage } from "../pages/fulfillment/FulfillmentPage";
+import { RebillsPage } from "../pages/rebills/RebillsPage";
+import LoginPage from "../pages/auth/LoginPage";
+import { RequireAuth, RedirectIfAuthenticated, RootRedirect } from "../contexts/auth/AuthGuard";
+
+export function AppRoutes() {
+  return (
+    <Routes>
+      <Route element={<RedirectIfAuthenticated />}>
+        <Route path="/login" element={<LoginPage />} />
+      </Route>
+
+      <Route element={<RequireAuth />}>
+        <Route path="/" element={<RootRedirect />} />
+
+        <Route element={<OpsLayout />}>
+          <Route path="/ops/overview" element={<OverviewPage />} />
+          <Route path="/ops" element={<ProductsPage />} />
+          <Route path="/ops/products" element={<ProductsPage />} />
+          <Route path="/ops/products/:id" element={<ProductsPage />} />
+          <Route path="/ops/products/:id/campaigns/:campaignId" element={<CampaignViewPage />} />
+          <Route path="/ops/products/:id/campaigns/:campaignId/launch" element={<CampaignLaunchPage />} />
+          <Route path="/ops/manage" element={<ManagePage />} />
+          <Route path="/ops/schedules" element={<SchedulesPage />} />
+          <Route path="/ops/rules" element={<RulesPage />} />
+          <Route path="/ops/infrastructure" element={<InfrastructurePage />} />
+          <Route path="/ops/rebills" element={<RebillsPage />} />
+          <Route path="/ops/fulfillment" element={<FulfillmentPage />} />
+          <Route path="/videos" element={<EditorPortalPage />} />
+        </Route>
+      </Route>
+    </Routes>
+  );
+}
