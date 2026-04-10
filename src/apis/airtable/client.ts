@@ -4,12 +4,9 @@
  * ALL Airtable API calls route through the server-side proxy at /api/airtable/.
  * The Airtable API key and Base ID are NEVER in the browser — they live
  * as Cloudflare Pages secrets and are injected by the proxy.
- *
- * This replaces the duplicated airtableFetch() + validateConfig() pattern
- * that previously existed in every data.ts file.
  */
 
-import { throttledAirtableFetch } from './airtable-throttle';
+import { throttledAirtableFetch } from './throttle';
 
 // =============================================================================
 // AUTH TOKEN

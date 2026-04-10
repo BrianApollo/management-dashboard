@@ -1,50 +1,9 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { setAuthToken } from '../../core/data/airtable-client';
+import { setAuthToken } from '../../apis/airtable/client';
+import * as authApi from '../../apis/auth/api';
 
-export interface User {
-    id: string;
-    email: string;
-    name: string;
-    role: string;
-}
-
-/**
- * Verify credentials via the server-side login endpoint.
- * The Airtable API key and password comparison happen server-side.
- */
-async function verifyCredentials(
-    email: string,
-    password: string
-): Promise<{ user: User; token: string } | null> {
-    try {
-        const response = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password }),
-        });
-        if (!response.ok) return null;
-        return (await response.json()) as { user: User; token: string };
-    } catch (error) {
-        console.error('Error verifying credentials:', error);
-        return null;
-    }
-}
-
-/**
- * Restore session from JWT token via /api/auth/me.
- */
-async function restoreSession(token: string): Promise<User | null> {
-    try {
-        const response = await fetch('/api/auth/me', {
-            headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!response.ok) return null;
-        const data = (await response.json()) as { user: User };
-        return data.user;
-    } catch {
-        return null;
-    }
-}
+import type { User } from '../../apis/auth/api';
+export type { User } from '../../apis/auth/api';
 
 interface AuthContextType {
     user: User | null;
@@ -69,7 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         async function restore() {
             // Try memory token first (if page hasn't fully reloaded)
             if (memoryToken) {
-                const restored = await restoreSession(memoryToken);
+                const restored = await authApi.restoreSession(memoryToken);
                 if (restored) {
                     setUser(restored);
                     setAuthToken(memoryToken);
@@ -79,16 +38,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
 
             // Try HttpOnly cookie session (sent automatically by browser)
-            try {
-                const response = await fetch('/api/auth/me', { credentials: 'same-origin' });
-                if (response.ok) {
-                    const data = await response.json() as { user: User };
-                    if (data.user) {
-                        setUser(data.user);
-                    }
-                }
-            } catch {
-                // No valid session
+            const cookieUser = await authApi.restoreSessionFromCookie();
+            if (cookieUser) {
+                setUser(cookieUser);
             }
 
             setIsInitializing(false);
@@ -99,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const login = async (email: string, password: string): Promise<User | null> => {
         setIsLoading(true);
         try {
-            const result = await verifyCredentials(email, password);
+            const result = await authApi.login(email, password);
             if (result) {
                 setUser(result.user);
                 memoryToken = result.token;
@@ -115,11 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const logout = async () => {
-        try {
-            await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
-        } catch {
-            // Best effort
-        }
+        await authApi.logout();
         setUser(null);
         memoryToken = null;
         setAuthToken(null);

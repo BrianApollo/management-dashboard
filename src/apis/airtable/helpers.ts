@@ -3,8 +3,8 @@
  * Replaces the copy-pasted do-while(offset) pagination pattern.
  */
 
-import { airtableFetch } from '../core/data/airtable-client';
-import type { AirtableRecord, AirtableResponse } from './airtable-types';
+import { airtableFetch } from './client';
+import type { AirtableRecord, AirtableResponse } from './types';
 
 /**
  * Fetch ALL records from an Airtable table, handling pagination automatically.

@@ -15,21 +15,7 @@ import {
   Card,
   CardContent,
 } from '@mui/material';
-import { getAuthToken } from '../../core/data/airtable-client';
-
-interface SlimRecord {
-  price: string;
-  cycle: number;
-  merchant: string;
-  merchantId: string;
-}
-
-interface PageResponse {
-  totalResults: number;
-  totalPages: number;
-  page: number;
-  data: SlimRecord[];
-}
+import { fetchPurchasePage, type SlimRecord } from '../../apis/rebills/api';
 
 function toApiDate(dateStr: string): string {
   const [y, m, d] = dateStr.split('-');
@@ -53,24 +39,6 @@ function fmt(n: number): string {
 function pct(part: number, total: number): string {
   if (total === 0) return '0%';
   return ((part / total) * 100).toFixed(1) + '%';
-}
-
-async function fetchPage(startDate: string, endDate: string, page: number): Promise<PageResponse> {
-  const token = getAuthToken();
-  const res = await fetch('/api/checkoutchamp/purchases', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    credentials: 'same-origin',
-    body: JSON.stringify({ startDate, endDate, page }),
-  });
-  if (!res.ok) {
-    const err = (await res.json()) as { error?: string };
-    throw new Error(err.error || `HTTP ${res.status}`);
-  }
-  return (await res.json()) as PageResponse;
 }
 
 interface MidRow { merchant: string; count: number; value: number }
@@ -135,7 +103,7 @@ export function RebillsPage() {
 
       // Page 1 to get total
       addLog(`Fetching page 1 to get total...`);
-      const first = await fetchPage(sd, ed, 1);
+      const first = await fetchPurchasePage(sd, ed, 1);
       const totalPages = first.totalPages;
       addLog(`Page 1: ${first.data.length} records. Total: ${first.totalResults} across ${totalPages} pages.`);
       setProgress({ current: 1, total: totalPages });
@@ -145,7 +113,7 @@ export function RebillsPage() {
       addLog(`Firing ${pageNums.length} requests in parallel...`);
 
       const results = await Promise.allSettled(
-        pageNums.map((p) => fetchPage(sd, ed, p).then((r) => ({ page: p, data: r.data })))
+        pageNums.map((p) => fetchPurchasePage(sd, ed, p).then((r) => ({ page: p, data: r.data })))
       );
 
       let done = 1;
@@ -170,7 +138,7 @@ export function RebillsPage() {
         addLog(`Retrying ${failedPages.length} failed pages...`);
         for (const p of failedPages) {
           try {
-            const retry = await fetchPage(sd, ed, p);
+            const retry = await fetchPurchasePage(sd, ed, p);
             allData.push(...retry.data);
             addLog(`Page ${p} retry: ${retry.data.length} records OK`);
           } catch (retryErr) {

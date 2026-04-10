@@ -7,5 +7,5 @@
 export * from './date';
 export * from './tokenizedSearch';
 export * from './sort';
-export * from './airtable-helpers';
-export * from './airtable-types';
+export * from '../apis/airtable/helpers';
+export * from '../apis/airtable/types';

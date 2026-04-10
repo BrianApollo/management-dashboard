@@ -16,40 +16,7 @@ import {
   Tabs,
   Tab,
 } from '@mui/material';
-import { getAuthToken } from '../../core/data/airtable-client';
-
-interface FulfillmentItem {
-  fulfillmentItemId: string;
-  name: string;
-  sku: string;
-  qty: string;
-  status: string;
-  productId: string;
-  rmaNumber: string;
-}
-
-interface FulfillmentRecord {
-  company: string;
-  orderId: string;
-  fulfillmentId: number;
-  fulfillmentHouseId: number;
-  dateShipped: string | null;
-  dateDelivered: string | null;
-  dateReturned: string | null;
-  dateCreated: string;
-  dateUpdated: string;
-  dateExported: string;
-  clientFulfillmentId: string;
-  trackingNumber: string | null;
-  isReshipment: number;
-  shipCarrier: string | null;
-  shipMethod: string | null;
-  status: string;
-  rmaNumber: string | null;
-  campaignId: string;
-  customerId: number;
-  items: FulfillmentItem[];
-}
+import { fetchAllFulfillments, type FulfillmentRecord } from '../../apis/fulfillment/api';
 
 type StatusGroup = 'HOLD' | 'PENDING' | 'SHIPPED' | 'OTHER';
 
@@ -108,30 +75,14 @@ export function FulfillmentPage() {
     setLoading(true);
     setError('');
     try {
-      const token = getAuthToken();
-      const res = await fetch('/api/checkoutchamp/fulfillment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        credentials: 'same-origin',
-        body: JSON.stringify({
-          startDate: toApiDate(startDate),
-          endDate: toApiDate(endDate),
-        }),
-      });
+      const sd = toApiDate(startDate);
+      const ed = toApiDate(endDate);
 
-      if (!res.ok) {
-        const err = await res.json() as { error?: string };
-        throw new Error(err.error || `HTTP ${res.status}`);
-      }
-
-      const data = await res.json() as { totalResults: number; data: FulfillmentRecord[] };
-      setTotalResults(data.totalResults);
+      const allData = await fetchAllFulfillments(sd, ed);
+      setTotalResults(allData.length);
 
       // Sort newest first
-      const sorted = data.data.sort((a, b) => b.dateCreated.localeCompare(a.dateCreated));
+      const sorted = allData.sort((a, b) => b.dateCreated.localeCompare(a.dateCreated));
 
       // Group by status
       const groups: Record<StatusGroup, FulfillmentRecord[]> = {

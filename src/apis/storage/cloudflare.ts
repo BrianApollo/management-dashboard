@@ -1,5 +1,5 @@
 /**
- * Cloudflare R2 Storage Upload Utilities
+ * Cloudflare R2 Storage API
  *
  * All uploads use presigned URLs for reliability.
  * Browser uploads directly to R2 - worker only handles metadata operations.
@@ -10,7 +10,30 @@
  * - Browser PUT directly to R2 with presigned URL
  */
 
-import { CF_STORAGE_WORKER_URL, CF_R2_PUBLIC_URL, validateConfig } from './config';
+// =============================================================================
+// CONFIGURATION
+// =============================================================================
+
+const CF_STORAGE_WORKER_URL = import.meta.env.VITE_CF_STORAGE_WORKER_URL as string | undefined;
+const CF_R2_PUBLIC_URL = import.meta.env.VITE_CF_R2_PUBLIC_URL as string | undefined;
+
+/**
+ * Check if Cloudflare storage is configured.
+ */
+export function isCloudflareConfigured(): boolean {
+  return !!(CF_STORAGE_WORKER_URL && CF_R2_PUBLIC_URL);
+}
+
+function validateConfig(): void {
+  const missing: string[] = [];
+  if (!CF_STORAGE_WORKER_URL) missing.push('VITE_CF_STORAGE_WORKER_URL');
+  if (!CF_R2_PUBLIC_URL) missing.push('VITE_CF_R2_PUBLIC_URL');
+  if (missing.length > 0) {
+    throw new Error(
+      `Cloudflare Storage configuration error: Missing environment variables: ${missing.join(', ')}`
+    );
+  }
+}
 
 // =============================================================================
 // TYPES
@@ -34,10 +57,6 @@ export interface UploadOptions {
   onProgress?: (progress: UploadProgress) => void;
 }
 
-// =============================================================================
-// WORKER RESPONSE TYPES
-// =============================================================================
-
 interface WorkerDeleteResponse {
   success: boolean;
   error?: string;
@@ -56,14 +75,10 @@ interface PresignResponse {
 
 /**
  * Build a public URL for an R2 object.
- *
- * @param key - The R2 object key (file path)
- * @returns Full public URL
  */
 export function buildPublicUrl(key: string): string {
   validateConfig();
 
-  // Ensure no double slashes
   const cleanKey = key.startsWith('/') ? key.slice(1) : key;
   const baseUrl = CF_R2_PUBLIC_URL!.endsWith('/')
     ? CF_R2_PUBLIC_URL!.slice(0, -1)
@@ -74,16 +89,6 @@ export function buildPublicUrl(key: string): string {
 
 /**
  * Upload a file to Cloudflare R2 storage.
- *
- * Uses presigned URL flow for all uploads:
- * 1. Request presigned URL from worker
- * 2. Browser uploads directly to R2
- * 3. R2 success = file exists (no silent failures)
- *
- * @param file - The file to upload
- * @param fileName - The name to use for the file
- * @param options - Upload options (prefix, onProgress)
- * @returns Upload result with URL and file ID (key)
  */
 export async function uploadFile(
   file: File,
@@ -94,12 +99,10 @@ export async function uploadFile(
 
   const { prefix, onProgress } = options;
 
-  // Validate fileName parameter is provided
   if (!fileName || fileName.trim() === '') {
     throw new Error('Upload blocked: fileName parameter is required');
   }
 
-  // Construct key using the provided fileName (NOT file.name)
   const key = prefix
     ? `${prefix}/${fileName}`
     : fileName;
@@ -109,10 +112,6 @@ export async function uploadFile(
   return uploadWithPresignedUrl(file, key, onProgress);
 }
 
-/**
- * Upload a file using a presigned URL.
- * Browser uploads directly to R2 for maximum reliability.
- */
 async function uploadWithPresignedUrl(
   file: File,
   key: string,
@@ -120,17 +119,10 @@ async function uploadWithPresignedUrl(
 ): Promise<UploadResult> {
   const contentType = file.type || 'application/octet-stream';
 
-  // Step 1: Get presigned URL from worker
   const presignResponse = await fetch(`${CF_STORAGE_WORKER_URL}/presign`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      key,
-      contentType,
-      contentLength: file.size,
-    }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key, contentType, contentLength: file.size }),
   });
 
   if (!presignResponse.ok) {
@@ -140,16 +132,13 @@ async function uploadWithPresignedUrl(
       if (errorData.error) {
         errorMessage = errorData.error;
       }
-    } catch {
-      // Use default error message
-    }
+    } catch { /* Use default error message */ }
     throw new Error(errorMessage);
   }
 
   const presignData: PresignResponse = await presignResponse.json();
   console.log(`[CF Storage] Got presigned URL, uploading directly to R2...`);
 
-  // Step 2: Upload file directly to R2 using presigned URL
   await new Promise<void>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
 
@@ -188,17 +177,11 @@ async function uploadWithPresignedUrl(
 
   console.log(`[CF Storage] Presigned upload complete: ${presignData.publicUrl}`);
 
-  return {
-    url: presignData.publicUrl,
-    fileId: key,
-  };
+  return { url: presignData.publicUrl, fileId: key };
 }
 
 /**
  * Delete a file from Cloudflare R2 storage.
- *
- * @param key - The R2 object key to delete
- * @throws Error if deletion fails (404 is silently ignored - file may already be deleted)
  */
 export async function deleteFile(key: string): Promise<void> {
   validateConfig();
@@ -207,13 +190,10 @@ export async function deleteFile(key: string): Promise<void> {
 
   const response = await fetch(`${CF_STORAGE_WORKER_URL}/delete`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ key }),
   });
 
-  // 404 is acceptable (file already deleted)
   if (response.status === 404) {
     console.log(`[CF Storage] File already deleted: ${key}`);
     return;
@@ -226,9 +206,7 @@ export async function deleteFile(key: string): Promise<void> {
       if (errorData.error) {
         errorMessage = errorData.error;
       }
-    } catch {
-      // Use default error message
-    }
+    } catch { /* Use default error message */ }
     throw new Error(errorMessage);
   }
 
