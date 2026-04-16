@@ -1,5 +1,5 @@
 import { Outlet } from 'react-router-dom';
 
-export function FulfillmentPage() {
+export function InvoicesPage() {
   return <Outlet />;
 }

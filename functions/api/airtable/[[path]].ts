@@ -49,7 +49,8 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
   // 4. Build the Airtable API URL
   const url = new URL(request.url);
-  const airtableUrl = `https://api.airtable.com/v0/${env.AIRTABLE_BASE_ID}/${airtablePath}${url.search}`;
+  const baseId = request.headers.get('x-airtable-base-id') || env.AIRTABLE_BASE_ID;
+  const airtableUrl = `https://api.airtable.com/v0/${baseId}/${airtablePath}${url.search}`;
 
   // 5. Forward the request with server-side API key
   const headers: Record<string, string> = {

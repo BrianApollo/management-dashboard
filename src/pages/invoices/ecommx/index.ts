@@ -1,0 +1,1 @@
+export { InvoicesEcommXPage } from './InvoicesEcommXPage';

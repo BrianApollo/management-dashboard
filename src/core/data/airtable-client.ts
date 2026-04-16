@@ -4,9 +4,12 @@
  * ALL Airtable API calls route through the server-side proxy at /api/airtable/.
  * The Airtable API key and Base ID are NEVER in the browser — they live
  * as Cloudflare Pages secrets and are injected by the proxy.
+ *
+ * This replaces the duplicated airtableFetch() + validateConfig() pattern
+ * that previously existed in every data.ts file.
  */
 
-import { throttledAirtableFetch } from './throttle';
+import { throttledAirtableFetch } from './airtable-throttle';
 
 // =============================================================================
 // AUTH TOKEN
@@ -43,10 +46,8 @@ export function getAuthToken(): string | null {
  */
 export async function airtableFetch(
   endpoint: string,
-  options: RequestInit & { baseId?: string } = {}
+  options: RequestInit = {}
 ): Promise<Response> {
-  const { baseId, ...fetchOptions } = options;
-
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
@@ -56,16 +57,11 @@ export async function airtableFetch(
     headers['Authorization'] = `Bearer ${authToken}`;
   }
 
-  // Override base if specified
-  if (baseId) {
-    headers['x-airtable-base-id'] = baseId;
-  }
-
   const response = await throttledAirtableFetch(`/api/airtable/${endpoint}`, {
-    ...fetchOptions,
+    ...options,
     headers: {
       ...headers,
-      ...(fetchOptions.headers || {}),
+      ...options.headers,
     },
   });
 
