@@ -60,7 +60,7 @@ const lightPalette = {
   error: { main: errorMain, light: errorLight, dark: errorDark },
   info: { main: infoMain, light: infoLight, dark: infoDark },
   background: {
-    default: '#FFFFFF',
+    default: '#F8FAFC',
     paper: '#FFFFFF',
   },
   divider: 'rgba(0, 0, 0, 0.08)',
@@ -292,7 +292,7 @@ const createComponentOverrides = (mode: 'light' | 'dark', palette: typeof lightP
     styleOverrides: {
       root: {
         backgroundImage: 'none',
-        borderRadius: 8,
+        borderRadius: 10,
         border: `1px solid ${palette.divider}`,
       },
     },
@@ -366,7 +366,7 @@ const createComponentOverrides = (mode: 'light' | 'dark', palette: typeof lightP
     styleOverrides: {
       root: {
         fontWeight: 500,
-        borderRadius: 4,
+        borderRadius: 99,
         transition: 'all 0.15s ease-in-out',
       },
       sizeSmall: {
@@ -438,7 +438,7 @@ const createComponentOverrides = (mode: 'light' | 'dark', palette: typeof lightP
   MuiTableContainer: {
     styleOverrides: {
       root: {
-        borderRadius: 8,
+        borderRadius: 10,
         border: `1px solid ${palette.divider}`,
         overflow: 'hidden',
       },
@@ -448,13 +448,13 @@ const createComponentOverrides = (mode: 'light' | 'dark', palette: typeof lightP
     styleOverrides: {
       root: {
         '& .MuiTableCell-head': {
-          backgroundColor: mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : palette.primary.main,
+          backgroundColor: mode === 'dark' ? 'rgba(255, 255, 255, 0.04)' : palette.grey[50],
           fontWeight: 600,
           fontSize: '0.6875rem',
           textTransform: 'uppercase' as const,
           letterSpacing: '0.06em',
-          color: mode === 'dark' ? palette.text.primary : '#ffffff',
-          borderBottom: `1px solid ${mode === 'dark' ? palette.divider : 'rgba(255,255,255,0.15)'}`,
+          color: palette.text.secondary,
+          borderBottom: `1px solid ${palette.divider}`,
         },
       },
     },
@@ -472,6 +472,9 @@ const createComponentOverrides = (mode: 'light' | 'dark', palette: typeof lightP
             backgroundColor: alpha(palette.primary.main, mode === 'dark' ? 0.16 : 0.1),
           },
         },
+        '&:last-of-type td': {
+          borderBottom: 0,
+        },
       },
     },
   },
@@ -479,10 +482,11 @@ const createComponentOverrides = (mode: 'light' | 'dark', palette: typeof lightP
     styleOverrides: {
       root: {
         borderBottomColor: palette.divider,
-        padding: '12px 16px',
+        padding: '10px 16px',
+        fontSize: '0.8125rem',
       },
       head: {
-        padding: '10px 16px',
+        padding: '8px 16px',
       },
     },
   },
@@ -498,7 +502,7 @@ const createComponentOverrides = (mode: 'light' | 'dark', palette: typeof lightP
   MuiDrawer: {
     styleOverrides: {
       paper: {
-        borderRight: 'none',
+        borderRight: `1px solid ${palette.divider}`,
         backgroundColor: palette.background.paper,
       },
     },
