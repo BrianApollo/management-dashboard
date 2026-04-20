@@ -4,12 +4,7 @@
  * Handles login, session restore, and logout via /api/auth/ endpoints.
  */
 
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: string;
-}
+import type { User } from './types';
 
 /**
  * Verify credentials via the server-side login endpoint.

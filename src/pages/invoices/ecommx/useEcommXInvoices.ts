@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { fetchEcommXInvoices } from '../../../apis/invoices/InvoicesApi';
+import { fetchEcommXInvoices } from '../../../apis/invoices/api';
 import type { EcommXInvoiceRecord } from './types';
 
 export function useEcommXInvoices() {

@@ -4,30 +4,8 @@
  * Fetches purchase (rebill) data from the CheckoutChamp proxy.
  */
 
-import { PROXY, PROXY_HEADERS } from '../checkoutchamp/client';
-
-interface RawPurchase {
-  price: string;
-  billingCycleNumber: number;
-  merchant: string;
-  merchantId: string;
-  descriptor: string;
-  status: string;
-}
-
-export interface SlimRecord {
-  price: string;
-  cycle: number;
-  merchant: string;
-  merchantId: string;
-}
-
-export interface PageResponse {
-  totalResults: number;
-  totalPages: number;
-  page: number;
-  data: SlimRecord[];
-}
+import { PROXY, PROXY_HEADERS } from '../checkoutchamp/api';
+import type { RawPurchase, SlimRecord, PageResponse } from './types';
 
 function slim(r: RawPurchase): SlimRecord {
   return {

@@ -14,7 +14,8 @@ import {
   Card,
   CardContent,
 } from '@mui/material';
-import { fetchAllFulfillments, type FulfillmentRecord } from '../../../apis/fulfillment/api';
+import { fetchAllFulfillments } from '../../../apis/fulfillment/api';
+import type { FulfillmentRecord } from '../../../apis/fulfillment/types';
 
 function toApiDate(date: Date): string {
   const m = String(date.getMonth() + 1).padStart(2, '0');
