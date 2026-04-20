@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Alert, Box, Button, Stack, Typography } from "@mui/material";
 import { createIssue, wakeupAgent } from "../../apis/paperclip/api";
-import type { CreateIssueInput } from "../../apis/paperclip/types";
+import type { CreateIssueInput, Issue } from "../../apis/paperclip/types";
+import { LiveRunModal } from "./LiveRunModal";
 
 export function OverviewPage() {
   const [loading, setLoading] = useState(false);
@@ -9,6 +10,7 @@ export function OverviewPage() {
     type: "success" | "error";
     message: string;
   } | null>(null);
+  const [activeIssue, setActiveIssue] = useState<Issue | null>(null);
 
   async function handleCreateIssue() {
     setLoading(true);
@@ -31,6 +33,7 @@ export function OverviewPage() {
         type: "success",
         message: `Created ${issue.identifier} and woke agent`,
       });
+      setActiveIssue(issue);
     } catch (err) {
       setResult({
         type: "error",
@@ -54,6 +57,11 @@ export function OverviewPage() {
         </Button>
       </Box>
       {result && <Alert severity={result.type}>{result.message}</Alert>}
+      <LiveRunModal
+        open={!!activeIssue}
+        onClose={() => setActiveIssue(null)}
+        issue={activeIssue}
+      />
     </Stack>
   );
 }

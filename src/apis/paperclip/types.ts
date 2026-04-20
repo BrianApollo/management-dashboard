@@ -88,3 +88,41 @@ export interface AddCommentInput {
   reopen?: boolean;
   interrupt?: boolean;
 }
+
+export type RunStatus =
+  | 'queued'
+  | 'running'
+  | 'succeeded'
+  | 'failed'
+  | 'cancelled'
+  | 'timed_out';
+
+export interface HeartbeatRun {
+  id: string;
+  companyId: string;
+  agentId: string;
+  status: RunStatus;
+  invocationSource?: 'timer' | 'assignment' | 'on_demand' | 'automation';
+  triggerDetail?: string | null;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+  error?: string | null;
+  exitCode?: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RunLogResponse {
+  content: string;
+  nextOffset: number;
+  eof: boolean;
+}
+
+export function isTerminalStatus(status: RunStatus | undefined | null): boolean {
+  return (
+    status === 'succeeded' ||
+    status === 'failed' ||
+    status === 'cancelled' ||
+    status === 'timed_out'
+  );
+}

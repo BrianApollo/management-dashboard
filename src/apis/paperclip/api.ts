@@ -8,10 +8,12 @@ import type {
   AddCommentInput,
   CheckoutIssueInput,
   CreateIssueInput,
+  HeartbeatRun,
   Issue,
   IssueComment,
   IssueDetail,
   ListIssuesParams,
+  RunLogResponse,
   UpdateIssueInput,
 } from './types';
 
@@ -137,6 +139,35 @@ export async function addComment(
     method: 'POST',
     body: JSON.stringify(input),
   });
+}
+
+/**
+ * Get the active heartbeat run for an issue, or null if none is running.
+ */
+export async function getActiveRun(identifier: string): Promise<HeartbeatRun | null> {
+  return request<HeartbeatRun | null>(`/issues/${identifier}/active-run`);
+}
+
+/**
+ * Fetch a byte-range of a heartbeat run's log. Use offset + limitBytes to tail.
+ */
+export async function getRunLog(
+  runId: string,
+  offset = 0,
+  limitBytes = 4096
+): Promise<RunLogResponse> {
+  const params = new URLSearchParams({
+    offset: String(offset),
+    limitBytes: String(limitBytes),
+  });
+  return request<RunLogResponse>(`/heartbeat-runs/${runId}/log?${params.toString()}`);
+}
+
+/**
+ * Cancel an in-flight heartbeat run. Board members only.
+ */
+export async function cancelRun(runId: string): Promise<void> {
+  await request<void>(`/heartbeat-runs/${runId}/cancel`, { method: 'POST' });
 }
 
 /**
