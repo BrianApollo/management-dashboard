@@ -138,3 +138,16 @@ export async function addComment(
     body: JSON.stringify(input),
   });
 }
+
+/**
+ * Wake up an agent to start a new heartbeat run immediately.
+ */
+export async function wakeupAgent(
+  agentId: string,
+  input: { source: 'on_demand' | 'timer' | 'assignment' | 'automation'; reason?: string } = { source: 'on_demand' }
+): Promise<unknown> {
+  return request(`/agents/${agentId}/wakeup`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
