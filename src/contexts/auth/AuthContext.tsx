@@ -1,9 +1,9 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { setAuthToken } from '../../apis/airtable/client';
+import { setAuthToken } from '../../apis/airtable/api';
 import * as authApi from '../../apis/auth/api';
 
-import type { User } from '../../apis/auth/api';
-export type { User } from '../../apis/auth/api';
+import type { User } from '../../apis/auth/types';
+export type { User } from '../../apis/auth/types';
 
 interface AuthContextType {
     user: User | null;

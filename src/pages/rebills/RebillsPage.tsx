@@ -15,7 +15,8 @@ import {
   Card,
   CardContent,
 } from '@mui/material';
-import { fetchPurchasePage, type SlimRecord } from '../../apis/rebills/api';
+import { fetchPurchasePage } from '../../apis/rebills/api';
+import type { SlimRecord } from '../../apis/rebills/types';
 
 function toApiDate(dateStr: string): string {
   const [y, m, d] = dateStr.split('-');
