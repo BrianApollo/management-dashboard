@@ -150,6 +150,10 @@ export async function getActiveRun(identifier: string): Promise<HeartbeatRun | n
 
 /**
  * Fetch a byte-range of a heartbeat run's log. Use offset + limitBytes to tail.
+ *
+ * The endpoint returns either `{ content, nextOffset, eof }` JSON or a raw text
+ * body. When `nextOffset` is missing, we advance the offset by the UTF-8 byte
+ * length of the received content so callers don't re-read the same bytes.
  */
 export async function getRunLog(
   runId: string,
@@ -160,7 +164,44 @@ export async function getRunLog(
     offset: String(offset),
     limitBytes: String(limitBytes),
   });
-  return request<RunLogResponse>(`/heartbeat-runs/${runId}/log?${params.toString()}`);
+
+  const res = await fetch(
+    `${API_URL}/heartbeat-runs/${runId}/log?${params.toString()}`,
+    { headers: headers() }
+  );
+
+  if (!res.ok) {
+    let message = `HTTP ${res.status}`;
+    try {
+      const err = (await res.json()) as { error?: string; message?: string };
+      message = err.error || err.message || message;
+    } catch {
+      // fall through
+    }
+    throw new Error(message);
+  }
+
+  const text = await res.text();
+
+  try {
+    const parsed = JSON.parse(text) as Partial<RunLogResponse>;
+    if (typeof parsed.content === 'string') {
+      const content = parsed.content;
+      const nextOffset =
+        typeof parsed.nextOffset === 'number'
+          ? parsed.nextOffset
+          : offset + new Blob([content]).size;
+      return { content, nextOffset, eof: !!parsed.eof };
+    }
+  } catch {
+    // body wasn't JSON — treat as raw log text
+  }
+
+  return {
+    content: text,
+    nextOffset: offset + new Blob([text]).size,
+    eof: false,
+  };
 }
 
 /**
