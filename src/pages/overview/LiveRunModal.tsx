@@ -116,16 +116,16 @@ function parseClaudeEvent(evt: unknown, nextKey: () => number): LogEntry[] {
     const out: LogEntry[] = [];
     for (const c of content as Array<Record<string, unknown>>) {
       if (c.type === 'tool_result') {
-        let preview = '';
+        let body = '';
         if (typeof c.content === 'string') {
-          preview = truncate(c.content, 160);
+          body = c.content;
         } else if (Array.isArray(c.content)) {
           const first = (c.content as Array<Record<string, unknown>>)[0];
-          if (first && typeof first.text === 'string') {
-            preview = truncate(first.text, 160);
-          }
+          if (first && typeof first.text === 'string') body = first.text;
         }
-        out.push({ key: nextKey(), kind: 'tool_result', text: 'result', meta: preview });
+        const lines = body ? body.split('\n').length : 0;
+        const meta = body ? `${lines} line${lines === 1 ? '' : 's'}, ${(body.length / 1024).toFixed(1)}KB` : '';
+        out.push({ key: nextKey(), kind: 'tool_result', text: body, meta });
       }
     }
     return out;
@@ -202,7 +202,61 @@ function statusColor(status: RunStatus | undefined): 'default' | 'info' | 'succe
   }
 }
 
-function LogLine({ entry }: { entry: LogEntry }) {
+const COLLAPSE_CHARS = 240;
+const COLLAPSE_LINES = 3;
+
+function isLong(s: string): boolean {
+  return s.length > COLLAPSE_CHARS || s.split('\n').length > COLLAPSE_LINES;
+}
+
+function firstLines(s: string, n: number): string {
+  const lines = s.split('\n');
+  if (lines.length <= n) return s.length > COLLAPSE_CHARS ? s.slice(0, COLLAPSE_CHARS) + '…' : s;
+  return lines.slice(0, n).join('\n') + '…';
+}
+
+function ExpandToggle({
+  expanded,
+  onToggle,
+  hiddenHint,
+}: {
+  expanded: boolean;
+  onToggle: () => void;
+  hiddenHint: string;
+}) {
+  return (
+    <Box
+      component="button"
+      onClick={onToggle}
+      sx={{
+        display: 'inline-block',
+        mt: 0.25,
+        px: 0.75,
+        py: 0,
+        bgcolor: 'transparent',
+        border: '1px solid #30363d',
+        borderRadius: 0.5,
+        color: '#58a6ff',
+        cursor: 'pointer',
+        fontFamily: 'inherit',
+        fontSize: 11,
+        '&:hover': { borderColor: '#58a6ff' },
+      }}
+    >
+      {expanded ? '▲ collapse' : `▼ show more (${hiddenHint})`}
+    </Box>
+  );
+}
+
+function LogLine({
+  entry,
+  expanded,
+  onToggle,
+}: {
+  entry: LogEntry;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
   const color = COLORS[entry.kind];
   const prefix = PREFIXES[entry.kind];
   const italic = entry.kind === 'thinking';
@@ -223,20 +277,6 @@ function LogLine({ entry }: { entry: LogEntry }) {
     );
   }
 
-  if (entry.kind === 'tool_result') {
-    return (
-      <Box sx={{ color, mb: 0.25 }}>
-        <Box component="span">{prefix}</Box>
-        <Box component="span">{entry.text}</Box>
-        {entry.meta && (
-          <Box component="span" sx={{ opacity: 0.6 }}>
-            {` ${entry.meta}`}
-          </Box>
-        )}
-      </Box>
-    );
-  }
-
   if (entry.kind === 'system') {
     return (
       <Box sx={{ color, mb: 0.25 }}>
@@ -251,18 +291,57 @@ function LogLine({ entry }: { entry: LogEntry }) {
     );
   }
 
+  // Collapsible kinds: tool_result, thinking, text, raw, stderr
+  const long = isLong(entry.text);
+  const bodyText = long && !expanded ? firstLines(entry.text, COLLAPSE_LINES) : entry.text;
+  const hiddenChars = entry.text.length - bodyText.length;
+  const hint = entry.meta || `${hiddenChars} chars`;
+
+  if (entry.kind === 'tool_result') {
+    return (
+      <Box sx={{ color, mb: 0.5 }}>
+        <Box>
+          <Box component="span">{prefix}</Box>
+          <Box component="span">result</Box>
+          {entry.meta && (
+            <Box component="span" sx={{ opacity: 0.6 }}>
+              {` · ${entry.meta}`}
+            </Box>
+          )}
+        </Box>
+        {entry.text && (
+          <Box
+            sx={{
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              opacity: 0.85,
+              pl: 2,
+              borderLeft: '2px solid #30363d',
+              ml: 0.5,
+              mt: 0.25,
+            }}
+          >
+            {bodyText}
+          </Box>
+        )}
+        {long && <Box sx={{ pl: 2.5 }}><ExpandToggle expanded={expanded} onToggle={onToggle} hiddenHint={hint} /></Box>}
+      </Box>
+    );
+  }
+
   return (
     <Box
       sx={{
         color,
         fontStyle: italic ? 'italic' : 'normal',
-        mb: 0.25,
+        mb: 0.5,
         whiteSpace: 'pre-wrap',
         wordBreak: 'break-word',
       }}
     >
       {prefix}
-      {entry.text}
+      {bodyText}
+      {long && <Box sx={{ mt: 0.25 }}><ExpandToggle expanded={expanded} onToggle={onToggle} hiddenHint={hint} /></Box>}
     </Box>
   );
 }
@@ -270,6 +349,7 @@ function LogLine({ entry }: { entry: LogEntry }) {
 export function LiveRunModal({ open, onClose, issue }: LiveRunModalProps) {
   const [run, setRun] = useState<HeartbeatRun | null>(null);
   const [entries, setEntries] = useState<LogEntry[]>([]);
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [cancelling, setCancelling] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -278,10 +358,20 @@ export function LiveRunModal({ open, onClose, issue }: LiveRunModalProps) {
   const keyRef = useRef(0);
   const termRef = useRef<HTMLDivElement | null>(null);
 
+  const toggleExpanded = (key: number) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
   useEffect(() => {
     if (!open) return;
     setRun(null);
     setEntries([]);
+    setExpanded(new Set());
     setError(null);
     offsetRef.current = 0;
     partialRef.current = '';
@@ -430,7 +520,12 @@ export function LiveRunModal({ open, onClose, issue }: LiveRunModalProps) {
             <Box sx={{ color: '#8b949e' }}>Run started — waiting for output…</Box>
           )}
           {entries.map((e) => (
-            <LogLine key={e.key} entry={e} />
+            <LogLine
+              key={e.key}
+              entry={e}
+              expanded={expanded.has(e.key)}
+              onToggle={() => toggleExpanded(e.key)}
+            />
           ))}
           {run && !terminal && (
             <Box component="span" sx={{ color: '#7ee787' }}>
