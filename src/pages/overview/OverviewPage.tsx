@@ -18,9 +18,9 @@ export function OverviewPage() {
 
     const agentId = import.meta.env.VITE_WORKER_AGENT_ID as string;
     const input: CreateIssueInput = {
-      title: "New Task from dashboard",
+      title: "New Task from dashboard to check Maverick",
       description:
-        "I have javascript project which is here /Users/brian/Downloads/Maverick 50110223362. I want you to run all the steps js in that folder. For the credentials you can use them as well. If steps are not working for some reason, use your Maverick skill and fix it.",
+        "You need to run Maverick skill that is assigned to you. If you don't find the skill just do nothing.",
       assigneeAgentId: agentId,
       projectId: import.meta.env.VITE_PAPERCLIP_PROJECT_ID as string,
       status: "todo",
