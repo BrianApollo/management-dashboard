@@ -36,4 +36,5 @@ export {
 export {
   CHECK_NEW_INVOICES_ISSUE,
   UPLOAD_PAYMENT_PROOF_ISSUE,
+  SYNC_MID_ISSUE,
 } from './issues';
