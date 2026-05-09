@@ -6,18 +6,22 @@ import { useEcommXInvoices } from './useEcommXInvoices';
 import { EcommXInvoiceStats } from './EcommXInvoiceStats';
 import { EcommXInvoiceList } from './EcommXInvoiceList';
 import { EcommXInvoiceDetail } from './EcommXInvoiceDetail';
+import { UploadFileModal } from '../../../components/common/upload';
 import type { EcommXInvoiceRecord } from './types';
+
+const PAYMENT_PROOF_FOLDER = 'payment-proof';
 import { createIssue, wakeupAgent } from '../../../apis/paperclip/api';
 import type { CreateIssueInput, Issue } from '../../../apis/paperclip/types';
 import { LiveRunModal } from '../../overview/LiveRunModal';
 import { CHECK_NEW_INVOICES_ISSUE, UPLOAD_PAYMENT_PROOF_ISSUE } from '../../../constants';
 
 export function InvoicesEcommXPage() {
-  const { invoices, loading, error } = useEcommXInvoices();
+  const { invoices, loading, loadingMore, error } = useEcommXInvoices();
   const [selected, setSelected] = useState<EcommXInvoiceRecord | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [result, setResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [activeIssue, setActiveIssue] = useState<Issue | null>(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   async function runIssue(title: string, description: string) {
     setActionLoading(true);
@@ -68,11 +72,9 @@ export function InvoicesEcommXPage() {
             size="small"
             startIcon={<UploadFileIcon />}
             disabled={actionLoading}
-            onClick={() =>
-              runIssue(UPLOAD_PAYMENT_PROOF_ISSUE.title, UPLOAD_PAYMENT_PROOF_ISSUE.description)
-            }
+            onClick={() => setUploadOpen(true)}
           >
-            {actionLoading ? 'Running…' : 'Upload Payment Proof'}
+            Upload Payment Proof
           </Button>
         </Box>
       </Box>
@@ -90,10 +92,18 @@ export function InvoicesEcommXPage() {
         </Box>
       )}
 
-      {error && <Typography color="error" sx={{ mb: 2 }}>{error}</Typography>}
+      {error && invoices.length === 0 && (
+        <Typography color="error" sx={{ mb: 2 }}>{error}</Typography>
+      )}
 
-      {!loading && !error && (
+      {!loading && (invoices.length > 0 || !error) && (
         <>
+          {error && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              Partial load: {error}
+            </Alert>
+          )}
+
           <EcommXInvoiceStats invoices={invoices} />
 
           {selected ? (
@@ -105,8 +115,29 @@ export function InvoicesEcommXPage() {
               onSelect={setSelected}
             />
           )}
+
+          {loadingMore && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1.5 }}>
+              <CircularProgress size={14} />
+              <Typography variant="caption" color="text.secondary">
+                Loading more invoices…
+              </Typography>
+            </Box>
+          )}
         </>
       )}
+
+      <UploadFileModal
+        open={uploadOpen}
+        onClose={() => setUploadOpen(false)}
+        folder={PAYMENT_PROOF_FOLDER}
+        title="Upload Payment Proof"
+        onConfirm={async (url) => {
+          setUploadOpen(false);
+          const description = `${UPLOAD_PAYMENT_PROOF_ISSUE.description}\n\nPayment proof: ${url}`;
+          await runIssue(UPLOAD_PAYMENT_PROOF_ISSUE.title, description);
+        }}
+      />
 
       <LiveRunModal
         open={!!activeIssue}

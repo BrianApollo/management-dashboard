@@ -13,3 +13,4 @@ export * from './readonly';
 export * from './state';
 export * from './status';
 export * from './tabs';
+export * from './upload';

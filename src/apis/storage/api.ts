@@ -21,16 +21,21 @@ const CF_R2_PUBLIC_URL = import.meta.env.VITE_CF_R2_PUBLIC_URL as string | undef
  * Check if Cloudflare storage is configured.
  */
 export function isCloudflareConfigured(): boolean {
-  return !!(CF_STORAGE_WORKER_URL && CF_R2_PUBLIC_URL);
+  return !!CF_STORAGE_WORKER_URL;
 }
 
-function validateConfig(): void {
-  const missing: string[] = [];
-  if (!CF_STORAGE_WORKER_URL) missing.push('VITE_CF_STORAGE_WORKER_URL');
-  if (!CF_R2_PUBLIC_URL) missing.push('VITE_CF_R2_PUBLIC_URL');
-  if (missing.length > 0) {
+function validateWorkerConfig(): void {
+  if (!CF_STORAGE_WORKER_URL) {
     throw new Error(
-      `Cloudflare Storage configuration error: Missing environment variables: ${missing.join(', ')}`
+      'Cloudflare Storage configuration error: Missing VITE_CF_STORAGE_WORKER_URL'
+    );
+  }
+}
+
+function validatePublicUrlConfig(): void {
+  if (!CF_R2_PUBLIC_URL) {
+    throw new Error(
+      'Cloudflare Storage configuration error: Missing VITE_CF_R2_PUBLIC_URL'
     );
   }
 }
@@ -77,7 +82,7 @@ interface PresignResponse {
  * Build a public URL for an R2 object.
  */
 export function buildPublicUrl(key: string): string {
-  validateConfig();
+  validatePublicUrlConfig();
 
   const cleanKey = key.startsWith('/') ? key.slice(1) : key;
   const baseUrl = CF_R2_PUBLIC_URL!.endsWith('/')
@@ -95,7 +100,7 @@ export async function uploadFile(
   fileName: string,
   options: UploadOptions = {}
 ): Promise<UploadResult> {
-  validateConfig();
+  validateWorkerConfig();
 
   const { prefix, onProgress } = options;
 
@@ -184,7 +189,7 @@ async function uploadWithPresignedUrl(
  * Delete a file from Cloudflare R2 storage.
  */
 export async function deleteFile(key: string): Promise<void> {
-  validateConfig();
+  validateWorkerConfig();
 
   console.log(`[CF Storage] Deleting file: ${key}`);
 

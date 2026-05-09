@@ -8,3 +8,12 @@ export interface MidRecord {
   bin: string;
   mcc: string;
 }
+
+export interface MidCheckRecord {
+  id: string;
+  date: string;
+  midIds: string[];
+  type: string;
+  data: string;
+  screenshotUrl?: string;
+}
