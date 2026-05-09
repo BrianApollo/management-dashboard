@@ -235,6 +235,15 @@ function metricValueColor(check: MidCheckRecord): string | undefined {
     if (num < 3) return 'warning.main';
     return 'error.main';
   }
+  if (check.type === 'Reserve') {
+    const cleaned = text.replace(/[$,\s]/g, '');
+    if (!cleaned) return undefined;
+    const num = Number(cleaned);
+    if (Number.isNaN(num)) return undefined;
+    if (num <= 15000) return 'success.main';
+    if (num <= 30000) return 'warning.main';
+    return 'error.main';
+  }
   return undefined;
 }
 
