@@ -15,5 +15,6 @@ export interface MidCheckRecord {
   midIds: string[];
   type: string;
   data: string;
-  screenshotUrl?: string;
+  dataTooltip: string;
+  screenshotUrls: string[];
 }

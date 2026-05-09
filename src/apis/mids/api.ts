@@ -27,14 +27,15 @@ export async function fetchMidChecks(): Promise<MidCheckRecord[]> {
 
   return records.map((r) => {
     const f = r.fields;
-    const screenshots = f['Screenshot'] as { url: string }[] | undefined;
+    const screenshots = (f['Screenshot'] as { url: string }[] | undefined) ?? [];
     return {
       id: r.id,
       date: (f['Date'] as string) || '',
       midIds: (f['MID'] as string[]) || [],
       type: (f['Type'] as string) || '',
       data: (f['Data'] as string) || '',
-      screenshotUrl: screenshots?.[0]?.url,
+      dataTooltip: (f['Data Tooltip'] as string) || '',
+      screenshotUrls: screenshots.map((s) => s.url).filter(Boolean),
     };
   });
 }
