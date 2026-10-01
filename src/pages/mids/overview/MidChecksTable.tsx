@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
   Box,
-  Button,
   Dialog,
   DialogContent,
   IconButton,
@@ -17,30 +16,50 @@ import {
   Typography,
 } from '@mui/material';
 import SyncIcon from '@mui/icons-material/Sync';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import CloseIcon from '@mui/icons-material/Close';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import type { SxProps, Theme } from '@mui/material';
+import { keyframes } from '@mui/system';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { MidCheckRecord, MidRecord } from './types';
 
+const SPIN = keyframes`
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+`;
+
 const METRIC_TYPES = ['Status', 'Sales MTD', 'Dispute Rate MTD', 'Reserve'] as const;
 const OTHER_TYPE = 'Other';
 type MetricKey = (typeof METRIC_TYPES)[number];
-type SortKey = 'MID' | MetricKey;
+type SortKey = 'MID' | MetricKey | 'LastSync';
 type SortDir = 'asc' | 'desc';
+
+// Column headers differ from the Airtable check type used to match records.
+const METRIC_LABELS: Record<MetricKey, string> = {
+  Status: 'Status',
+  'Sales MTD': 'Sales MTD',
+  'Dispute Rate MTD': 'CB% MTD',
+  Reserve: 'Reserve',
+};
 
 interface Props {
   checks: MidCheckRecord[];
   mids: MidRecord[];
   onSync?: (mid: MidRecord) => void;
   syncingId?: string | null;
+  onRefresh?: () => void;
+  refreshing?: boolean;
 }
 
 interface MidRow {
   mid: MidRecord;
   metrics: Partial<Record<MetricKey, MidCheckRecord>>;
   other?: MidCheckRecord;
+  /** Newest check date across every metric on this row, '' when never synced. */
+  lastSync: string;
 }
 
 interface LightboxState {
@@ -55,6 +74,25 @@ function formatDate(iso: string): string {
   return d.toLocaleString();
 }
 
+/** Compact stamp for the tiny under-button label, e.g. "3/14 09:41". */
+function formatShortDate(iso: string): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString(undefined, {
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function timestamp(iso: string): number | null {
+  if (!iso) return null;
+  const t = new Date(iso).getTime();
+  return Number.isNaN(t) ? null : t;
+}
+
 function truncate(s: string, n: number): string {
   if (s.length <= n) return s;
   return s.slice(0, n) + '…';
@@ -64,12 +102,13 @@ function buildRows(checks: MidCheckRecord[], mids: MidRecord[]): MidRow[] {
   const metricSet = new Set<string>(METRIC_TYPES);
   const rowByMid = new Map<string, MidRow>();
   for (const mid of mids) {
-    rowByMid.set(mid.id, { mid, metrics: {} });
+    rowByMid.set(mid.id, { mid, metrics: {}, lastSync: '' });
   }
   for (const check of checks) {
     for (const midId of check.midIds) {
       const row = rowByMid.get(midId);
       if (!row) continue;
+      if (check.date > row.lastSync) row.lastSync = check.date;
       if (metricSet.has(check.type)) {
         const type = check.type as MetricKey;
         const existing = row.metrics[type];
@@ -104,6 +143,9 @@ function compareRows(a: MidRow, b: MidRow, key: SortKey, dir: SortDir): number {
   if (key === 'MID') {
     av = a.mid.name.toLowerCase();
     bv = b.mid.name.toLowerCase();
+  } else if (key === 'LastSync') {
+    av = timestamp(a.lastSync);
+    bv = timestamp(b.lastSync);
   } else {
     av = metricSortValue(a.metrics[key]);
     bv = metricSortValue(b.metrics[key]);
@@ -498,7 +540,14 @@ function ImageDialog({
   );
 }
 
-export function MidChecksTable({ checks, mids, onSync, syncingId }: Props) {
+export function MidChecksTable({
+  checks,
+  mids,
+  onSync,
+  syncingId,
+  onRefresh,
+  refreshing,
+}: Props) {
   const [sortBy, setSortBy] = useState<SortKey>('MID');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [lightbox, setLightbox] = useState<LightboxState | null>(null);
@@ -528,13 +577,15 @@ export function MidChecksTable({ checks, mids, onSync, syncingId }: Props) {
   const rows = buildRows(checks, mids).sort((a, b) =>
     compareRows(a, b, sortBy, sortDir)
   );
+  const showActions = !!onSync || !!onRefresh;
 
-  function renderSortHeader(key: SortKey, label: string) {
+  function renderSortHeader(key: SortKey, label: string, sx?: SxProps<Theme>) {
     return (
       <TableSortLabel
         active={sortBy === key}
         direction={sortBy === key ? sortDir : 'asc'}
         onClick={() => handleSort(key)}
+        sx={sx}
       >
         {label}
       </TableSortLabel>
@@ -562,9 +613,58 @@ export function MidChecksTable({ checks, mids, onSync, syncingId }: Props) {
             <TableRow>
               <TableCell>{renderSortHeader('MID', 'MID')}</TableCell>
               {METRIC_TYPES.map((t) => (
-                <TableCell key={t}>{renderSortHeader(t, t)}</TableCell>
+                <TableCell key={t}>{renderSortHeader(t, METRIC_LABELS[t])}</TableCell>
               ))}
-              {onSync && <TableCell align="right">Actions</TableCell>}
+              {showActions && (
+                <TableCell align="right" sx={{ whiteSpace: 'nowrap', width: 108 }}>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'flex-end',
+                      gap: 0.75,
+                    }}
+                  >
+                    {renderSortHeader('LastSync', 'Last sync', {
+                      fontSize: '0.65rem',
+                      fontWeight: 600,
+                      letterSpacing: '0.06em',
+                      textTransform: 'uppercase',
+                      opacity: 0.9,
+                      '& .MuiTableSortLabel-icon': { fontSize: 14 },
+                    })}
+                    {onRefresh && (
+                      <Tooltip title="Reload checks" placement="top" arrow>
+                        <span>
+                          <IconButton
+                            size="small"
+                            onClick={onRefresh}
+                            disabled={refreshing}
+                            sx={{
+                              color: '#fff',
+                              p: 0.375,
+                              border: '1px solid rgba(255,255,255,0.4)',
+                              borderRadius: 1,
+                              '&:hover': {
+                                bgcolor: 'rgba(255,255,255,0.18)',
+                                borderColor: '#fff',
+                              },
+                              '&.Mui-disabled': { color: 'rgba(255,255,255,0.6)' },
+                            }}
+                          >
+                            <RefreshIcon
+                              sx={{
+                                fontSize: 16,
+                                ...(refreshing && { animation: `${SPIN} 0.9s linear infinite` }),
+                              }}
+                            />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                    )}
+                  </Box>
+                </TableCell>
+              )}
             </TableRow>
           </TableHead>
           <TableBody>
@@ -582,17 +682,69 @@ export function MidChecksTable({ checks, mids, onSync, syncingId }: Props) {
                     />
                   </TableCell>
                 ))}
-                {onSync && (
-                  <TableCell align="right">
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      startIcon={<SyncIcon />}
-                      disabled={syncingId === row.mid.id}
-                      onClick={() => onSync(row.mid)}
+                {showActions && (
+                  <TableCell align="right" sx={{ whiteSpace: 'nowrap', py: 0.5 }}>
+                    <Box
+                      sx={{
+                        display: 'inline-flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 0.25,
+                        minWidth: 64,
+                      }}
                     >
-                      {syncingId === row.mid.id ? 'Syncing…' : 'Sync'}
-                    </Button>
+                      {onSync && (
+                        <Tooltip title="Sync this MID" placement="top" arrow>
+                          <span>
+                            <IconButton
+                              size="small"
+                              disabled={syncingId === row.mid.id}
+                              onClick={() => onSync(row.mid)}
+                              sx={{
+                                p: 0.5,
+                                color: 'primary.main',
+                                border: '1px solid',
+                                borderColor: 'divider',
+                                borderRadius: 1.5,
+                                transition: 'background-color 0.15s, color 0.15s, border-color 0.15s',
+                                '&:hover': {
+                                  bgcolor: 'primary.main',
+                                  borderColor: 'primary.main',
+                                  color: '#fff',
+                                },
+                              }}
+                            >
+                              <SyncIcon
+                                sx={{
+                                  fontSize: 18,
+                                  ...(syncingId === row.mid.id && {
+                                    animation: `${SPIN} 0.9s linear infinite`,
+                                  }),
+                                }}
+                              />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      )}
+                      <Tooltip
+                        title={row.lastSync ? `Last sync: ${formatDate(row.lastSync)}` : 'Never synced'}
+                        placement="bottom"
+                        arrow
+                      >
+                        <Box
+                          sx={{
+                            fontSize: '0.6rem',
+                            lineHeight: 1,
+                            color: 'text.disabled',
+                            fontVariantNumeric: 'tabular-nums',
+                            letterSpacing: '0.02em',
+                            cursor: 'default',
+                          }}
+                        >
+                          {row.lastSync ? formatShortDate(row.lastSync) : '—'}
+                        </Box>
+                      </Tooltip>
+                    </Box>
                   </TableCell>
                 )}
               </TableRow>

@@ -21,10 +21,15 @@ const API_URL = import.meta.env.VITE_PAPERCLIP_API_URL as string;
 const COMPANY_ID = import.meta.env.VITE_PAPERCLIP_COMPANY_ID as string;
 
 // Dev-only: in `npm run dev`, the Vite proxy forwards /paperclip/* straight to
-// the upstream ngrok URL, so the browser must provide the auth header itself.
-// In production, the PAPERCLIP_API_TOKEN is injected by functions/paperclip/[[path]].ts
-// and this value is undefined — no Authorization header is sent from the client.
-const DEV_API_TOKEN = import.meta.env.VITE_PAPERCLIP_API_TOKEN as string | undefined;
+// the upstream URL, so the browser must provide the auth header itself.
+// In production the request goes through functions/paperclip/[[path]].ts, which
+// authenticates the dashboard session and injects PAPERCLIP_API_TOKEN server-side.
+// Gating on import.meta.env.DEV guarantees this token is never sent from a prod
+// build — even if VITE_PAPERCLIP_API_TOKEN gets baked into the bundle — so it can't
+// clobber the session cookie the proxy expects (Vite statically strips this branch).
+const DEV_API_TOKEN = import.meta.env.DEV
+  ? (import.meta.env.VITE_PAPERCLIP_API_TOKEN as string | undefined)
+  : undefined;
 
 function headers(): HeadersInit {
   const h: Record<string, string> = { 'Content-Type': 'application/json' };

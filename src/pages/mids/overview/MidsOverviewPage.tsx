@@ -25,7 +25,7 @@ export function MidsOverviewPage() {
     setResult(null);
 
     const agentId = import.meta.env.VITE_WORKER_AGENT_ID as string;
-    const { title, description } = SYNC_MID_ISSUE(mid.name);
+    const { title, description } = SYNC_MID_ISSUE(mid.name, mids.map((m) => m.name));
     const input: CreateIssueInput = {
       title,
       description,
@@ -57,8 +57,8 @@ export function MidsOverviewPage() {
         value={tab}
         onChange={setTab}
         options={[
-          { value: 'all', label: 'All MIDs', count: mids.length },
-          { value: 'info', label: 'MID Information' },
+          { value: 'all', label: 'Details', count: mids.length },
+          { value: 'info', label: 'Checks' },
         ]}
         sx={{ mb: 2 }}
       />
@@ -79,7 +79,7 @@ export function MidsOverviewPage() {
       )}
 
       {!loading && !error && tab === 'all' && (
-        <MidsList mids={mids} onSync={handleSync} syncingId={syncingId} />
+        <MidsList mids={mids} />
       )}
 
       {!loading && !error && tab === 'info' && (
@@ -104,7 +104,7 @@ function MidChecksPanel({
   onSync: (mid: MidRecord) => void;
   syncingId: string | null;
 }) {
-  const { checks, loading, error } = useMidChecks();
+  const { checks, loading, refreshing, error, refresh } = useMidChecks();
 
   if (loading) {
     return (
@@ -119,5 +119,14 @@ function MidChecksPanel({
     return <Typography color="error" sx={{ mb: 2 }}>{error}</Typography>;
   }
 
-  return <MidChecksTable checks={checks} mids={mids} onSync={onSync} syncingId={syncingId} />;
+  return (
+    <MidChecksTable
+      checks={checks}
+      mids={mids}
+      onSync={onSync}
+      syncingId={syncingId}
+      onRefresh={refresh}
+      refreshing={refreshing}
+    />
+  );
 }

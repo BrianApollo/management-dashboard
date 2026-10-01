@@ -8,7 +8,7 @@ export default defineConfig({
     proxy: {
       '/api': 'http://localhost:8788',
       '/paperclip': {
-        target: 'https://bannister-bullseye-pastel.ngrok-free.dev/',
+        target: 'https://paperclip.trustapollo.media/',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/paperclip/, '/api'),
       },
