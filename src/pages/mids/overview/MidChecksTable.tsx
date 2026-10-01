@@ -4,7 +4,9 @@ import {
   Dialog,
   DialogContent,
   IconButton,
+  MenuItem,
   Paper,
+  Select,
   Table,
   TableBody,
   TableCell,
@@ -36,6 +38,13 @@ const OTHER_TYPE = 'Other';
 type MetricKey = (typeof METRIC_TYPES)[number];
 type SortKey = 'MID' | MetricKey | 'LastSync';
 type SortDir = 'asc' | 'desc';
+type StatusFilter = 'all' | 'active' | 'inactive';
+
+const STATUS_FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'active', label: 'Active' },
+  { value: 'inactive', label: 'Inactive' },
+];
 
 // Column headers differ from the Airtable check type used to match records.
 const METRIC_LABELS: Record<MetricKey, string> = {
@@ -123,6 +132,13 @@ function buildRows(checks: MidCheckRecord[], mids: MidRecord[]): MidRow[] {
     }
   }
   return Array.from(rowByMid.values());
+}
+
+function matchesStatus(row: MidRow, filter: StatusFilter): boolean {
+  if (filter === 'all') return true;
+  const status = (row.metrics.Status?.data || '').trim().toLowerCase();
+  const isActive = status === 'active';
+  return filter === 'active' ? isActive : !isActive;
 }
 
 function metricSortValue(check: MidCheckRecord | undefined): number | string | null {
@@ -551,6 +567,7 @@ export function MidChecksTable({
   const [sortBy, setSortBy] = useState<SortKey>('MID');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [lightbox, setLightbox] = useState<LightboxState | null>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
   if (mids.length === 0) {
     return (
@@ -574,9 +591,9 @@ export function MidChecksTable({
     setLightbox({ urls, index });
   }
 
-  const rows = buildRows(checks, mids).sort((a, b) =>
-    compareRows(a, b, sortBy, sortDir)
-  );
+  const rows = buildRows(checks, mids)
+    .filter((row) => matchesStatus(row, statusFilter))
+    .sort((a, b) => compareRows(a, b, sortBy, sortDir));
   const showActions = !!onSync || !!onRefresh;
 
   function renderSortHeader(key: SortKey, label: string, sx?: SxProps<Theme>) {
@@ -594,6 +611,20 @@ export function MidChecksTable({
 
   return (
     <>
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
+        <Select
+          size="small"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+          sx={{ minWidth: 120 }}
+        >
+          {STATUS_FILTER_OPTIONS.map((o) => (
+            <MenuItem key={o.value} value={o.value}>
+              {o.label}
+            </MenuItem>
+          ))}
+        </Select>
+      </Box>
       <TableContainer component={Paper} variant="outlined">
         <Table size="small">
           <TableHead
@@ -668,6 +699,17 @@ export function MidChecksTable({
             </TableRow>
           </TableHead>
           <TableBody>
+            {rows.length === 0 && (
+              <TableRow>
+                <TableCell
+                  colSpan={METRIC_TYPES.length + (showActions ? 2 : 1)}
+                  align="center"
+                  sx={{ py: 4, color: 'text.secondary' }}
+                >
+                  No MIDs match this status
+                </TableCell>
+              </TableRow>
+            )}
             {rows.map((row) => (
               <TableRow key={row.mid.id} hover>
                 <TableCell sx={{ fontWeight: 500, whiteSpace: 'nowrap' }}>
