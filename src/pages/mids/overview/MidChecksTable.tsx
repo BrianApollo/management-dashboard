@@ -567,7 +567,7 @@ export function MidChecksTable({
   const [sortBy, setSortBy] = useState<SortKey>('MID');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [lightbox, setLightbox] = useState<LightboxState | null>(null);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
 
   if (mids.length === 0) {
     return (
